@@ -1,0 +1,139 @@
+COMP1549 (2025/2026) - Advanced Programming
+Security Access Control System (Task 2) - Project Reflection Report
+
+-----------------------------------------------------------------------
+NOTE ON FORMATTING (for PDF conversion)
+- Use Times New Roman, font size 11 for all text.
+- Keep the total paper length to no more than 3 pages.
+- When converting this TXT file to PDF, preserve the tables below.
+-----------------------------------------------------------------------
+
+1. Overview (brief)
+This project implements an access-controlled system using:
+1) Users with unique IDs and Roles (GUEST, STUDENT, STAFF, ADMIN),
+2) Resources with AccessScope (PUBLIC, INTERNAL, CONFIDENTIAL),
+3) Access rules (policy) that decide ALLOW/REFUSE for READ/WRITE,
+4) Typed capabilities using Java Generics to enforce that only the correct operation can be invoked at compile time,
+5) Logging of every authorization decision (including timestamp, user, role, resource, operation, and ALLOW/REFUSE).
+
+Core implementation highlights:
+- Authorization is evaluated using a rule-chain (Chain of Responsibility style).
+- Logging is added via a decorator (so policy logic remains separate from logging).
+- All main access points use generics-typed capabilities: read accepts Capability<Read>, and write accepts Capability<Write>.
+
+-----------------------------------------------------------------------
+2. Java Generics (Up to 2 challenging uses) [04 marks]
+
+| Design Pattern Name | Involved classes/methods | One usage of Java Generics per row | Justification |
+|---|---|---|---|
+| Typed capabilities: `Capability<T extends CapabilityType>` | `com.coursework.accesscontrol.capability.Capability`, `Read`, `Write`, `CapabilityFactory`, `SecureResourceService.read(...)`, `SecureResourceService.write(...)` | `Capability<Read>` can only be passed to `SecureResourceService.read(...)`, and `Capability<Write>` can only be passed to `SecureResourceService.write(...)` | This uses generics to enforce correct operation usage at compile time, reducing the risk of runtime security failures due to calling the wrong operation. |
+| Generic access outcome payload | `com.coursework.accesscontrol.auth.AccessOutcome<T>`, `SecureResourceService.read(...)`, `SecureResourceService.write(...)` | Reads return `AccessOutcome<String>`, writes return `AccessOutcome<Void>` | The generic return type ensures the caller cannot accidentally treat a denied write as a readable value (and vice versa), keeping control-flow and returned payload types consistent. |
+
+-----------------------------------------------------------------------
+3. Design Patterns (Up to 2) [04 marks]
+
+| Design Pattern Name | Involved classes/methods | Justification |
+|---|---|---|
+| Chain of Responsibility (rule chain) | `RuleChainAccessAuthorizer.authorize(...)`, `AccessRule.evaluate(...)`, `GuestAccessRule`, `StudentAccessRule`, `StaffAccessRule`, `AdminAccessRule` | Authorization is decided by trying a sequence of modular rules. Each rule returns `Optional<AccessResult>`: empty means “not applicable”, present means “decision found”. If no rule matches, the default is REFUSE, which is a safe security default. |
+| Decorator (logging wrapper) | `LoggingAccessAuthorizer.authorize(...)`, `AccessLog.record(...)`, `AccessLogEntry.toLogLine(...)` | Logging is implemented as a wrapper around the authorizer. This cleanly separates policy evaluation (what to allow/refuse) from audit logging (recording who did what and whether it was allowed). |
+
+-----------------------------------------------------------------------
+4. JUnit Testing (Up to 4 challenging unit tests) [04 marks]
+
+| Test Name | Involved classes/methods | Description |
+|---|---|---|
+| `studentAllowedReadInternal` | `AccessControlPolicyTest.studentAllowedReadInternal`, `SecureResourceService.read(...)`, `StudentAccessRule.evaluate(...)`, `LoggingAccessAuthorizer.authorize(...)` | Validates that a STUDENT is ALLOWED to READ INTERNAL data and that the corresponding ALLOW decision is logged. |
+| `studentDeniedWriteConfidentialAndLogged` | `AccessControlPolicyTest.studentDeniedWriteConfidentialAndLogged`, `SecureResourceService.write(...)`, `StudentAccessRule.evaluate(...)`, `AccessLogEntry` | Validates that a STUDENT is REFUSED when attempting WRITE on CONFIDENTIAL data, that the resource content is not modified, and that REFUSE is logged. |
+| `guestDeniedReadConfidentialAndLoggedFormat` | `AccessControlPolicyTest.guestDeniedReadConfidentialAndLoggedFormat`, `SecureResourceService.read(...)`, `AccessLogEntry.toLogLine(...)` | Validates that a GUEST is denied for CONFIDENTIAL READ and that the log line format includes: timestamp, userId, role, resource name, operation, and decision. |
+| `adminAllowsReadWriteConfidential_updatesContentAndLogs` | `AccessControlPolicyTest.adminAllowsReadWriteConfidential_updatesContentAndLogs`, `AdminAccessRule.evaluate(...)`, `SecureResourceService.write(...)`, `SecureResourceService.read(...)` | Validates that ADMIN can both WRITE and subsequently READ CONFIDENTIAL, and that both actions generate ALLOW log entries. |
+
+-----------------------------------------------------------------------
+5. Access Control Policy (Up to 4 access rules) [04 marks]
+
+| Access Control Rules | Involved classes/methods | Description |
+|---|---|---|
+| `GUEST` can READ only `PUBLIC` | `GuestAccessRule.evaluate(...)`, `RuleChainAccessAuthorizer.authorize(...)` | If role is GUEST and operation is READ and resource scope is PUBLIC, the rule returns ALLOW; otherwise it results in a REFUSE decision via the rule chain default/safe behavior. |
+| `STUDENT` can READ `PUBLIC` and `INTERNAL` but cannot access `CONFIDENTIAL` | `StudentAccessRule.evaluate(...)`, `SecureResourceService.read(...)` | If role is STUDENT and operation is READ and resource scope is PUBLIC or INTERNAL, ALLOW is returned. For CONFIDENTIAL (and for WRITE), the rule returns REFUSE. |
+| `STUDENT` cannot WRITE (policy denies) | `StudentAccessRule.evaluate(...)`, `SecureResourceService.write(...)` | The policy explicitly denies WRITE for STUDENT regardless of resource scope, demonstrating enforcement of both role and operation. |
+| `ADMIN` can READ and WRITE all scopes | `AdminAccessRule.evaluate(...)`, `SecureResourceService.read(...)`, `SecureResourceService.write(...)` | The policy grants ALLOW for both READ and WRITE for any resource scope. The service layer then enacts the change only when the decision is ALLOW. |
+
+-----------------------------------------------------------------------
+6. Usage of AI (Mandatory Table) [02 marks]
+
+Fill in this table with the AI tool(s) you actually used and your contribution percentages.
+The table below contains placeholders to avoid incorrect claims.
+
+| AI Program | Classes and/or Methods | Name and URL of the AI program used | Contribution |
+|---|---|---|---|
+| [e.g., ChatGPT / Cursor AI / other] | [e.g., list class(es)/method(s) you want to attribute] | [Tool name + URL] | [e.g., 30%] |
+| [If multiple tools used] | [List again] | [Tool name + URL] | [Percent] |
+| If no AI was used | N/A | No AI program used | 0% |
+
+-----------------------------------------------------------------------
+7. Academic Integrity Statement (Include as-is)
+
+"You may use (Gen)AI programs to help generate ideas.  However, you should note that the material generated by these programs may be inaccurate, incomplete, or otherwise problematic. Please note that using such programs supress your own independent thinking and creativity.
+You should not submit any work generated by an AI program as your own. If you include material generated by an AI program, it should be cited like any other reference material. If any core part of your submission is found to be generated by AI programs but not cited, you may fail the module.
+Any plagiarism or other form of cheating will be dealt with severely under relevant University of Greenwich policies."
+
+-----------------------------------------------------------------------
+8. Presentation Style (Short compliance statement) [02 marks]
+This report is structured into the required sections and tables:
+- Java Generics
+- Design Patterns
+- JUnit Testing
+- Access Control Policy
+- Usage of AI
+All formatting should be applied in the PDF conversion step (Times New Roman, size 11), and the report must remain within 3 pages.
+
+-----------------------------------------------------------------------
+9. Demonstration Scenario (C) - copy for live demo [not part of tables]
+
+Scenario Demonstration to run (meets “3 different users + allow/deny + show logs”):
+
+1) Run the demo application:
+   - `java -cp target\classes com.coursework.accesscontrol.demo.AccessControlDemo`
+
+2) The demo uses at least 3 different users with different access:
+   - `user1` with role `GUEST`
+   - `user2` with role `STUDENT`
+   - `user3` with role `STAFF`
+
+3) Demonstrate allowed and denied access:
+   - GUEST:
+     - allowed: READ `Printer` (PUBLIC)
+     - denied: READ `Exam Paper` (CONFIDENTIAL)
+   - STUDENT:
+     - allowed: READ `Lecture Material` (INTERNAL)
+     - denied: WRITE `Exam Paper` (CONFIDENTIAL)
+   - STAFF:
+     - allowed: READ `Lecture Material` (INTERNAL)
+     - denied: READ `Exam Paper` (CONFIDENTIAL)
+
+4) Show logged messages confirming ALLOW/REFUSE decisions:
+   - The demo prints “=== Access Log ===” after the scenario.
+   - Each log line includes:
+     timestamp, userId, role, resourceName, operation, decision (ALLOW/REFUSE).
+
+-----------------------------------------------------------------------
+10. Implementation Inspection (D) - copy for live demo [not part of tables]
+
+Most challenging design pattern: Chain of Responsibility (rule chain)
+- Implemented by: `com.coursework.accesscontrol.auth.RuleChainAccessAuthorizer#authorize(...)`
+- Supporting code:
+  - `com.coursework.accesscontrol.auth.rules.AccessRule`
+  - `GuestAccessRule`, `StudentAccessRule`, `StaffAccessRule`, `AdminAccessRule`
+- Explanation:
+  The authorizer iterates through an ordered list of rules. Each rule’s `evaluate(...)` returns `Optional<AccessResult>`.
+  - `Optional.empty()` means: rule does not apply (try next rule)
+  - `Optional.of(...)` means: a decision is found (first-match)
+  If no rule provides a decision, the authorizer returns `REFUSE` by default.
+  This makes the authorization logic modular and safer, because “no matching rule” results in denying access.
+
+Most challenging JUnit test: `studentDeniedWriteConfidentialAndLogged`
+- Implemented by: `com.coursework.accesscontrol.AccessControlPolicyTest#studentDeniedWriteConfidentialAndLogged`
+- What it validates:
+  1) The policy decision for STUDENT attempting WRITE on a CONFIDENTIAL resource is `REFUSE`.
+  2) The secure service does not modify the resource content when access is refused.
+  3) The log entry is created with `REFUSE` and includes the correct resource name and userId.
+

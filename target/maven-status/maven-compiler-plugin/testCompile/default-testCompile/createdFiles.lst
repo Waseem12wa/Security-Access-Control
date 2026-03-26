@@ -1,0 +1,7 @@
+com\coursework\accesscontrol\SecureResourceServiceTest.class
+com\coursework\accesscontrol\AccessControlPolicyTest.class
+com\coursework\accesscontrol\RoleAccessRulesTest.class
+com\coursework\accesscontrol\LoggingAccessAuthorizerTest.class
+com\coursework\accesscontrol\RuleChainAccessAuthorizerTest.class
+com\coursework\accesscontrol\AccessLogEntryTest.class
+com\coursework\accesscontrol\CapabilityFactoryTest.class
